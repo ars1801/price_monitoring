@@ -1,0 +1,13 @@
+Metadata-Version: 2.4
+Name: price-monitoring-system
+Version: 0.1.0
+Summary: Система мониторинга цен
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi
+Requires-Dist: uvicorn[standard]
+Requires-Dist: pydantic
+Requires-Dist: pydantic-settings
+Requires-Dist: sqlalchemy
+
+# price_monitoring_system
