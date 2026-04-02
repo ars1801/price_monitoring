@@ -10,10 +10,9 @@ dependencies = [
     "pydantic",
     "pydantic-settings",
     "sqlalchemy",
-    "pydantic",
-    "pydantic-settings",
     "psycopg2",
     "alembic",
+    "httpx",
 ]
 
 [build-system]
