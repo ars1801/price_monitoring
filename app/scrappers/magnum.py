@@ -7,7 +7,7 @@ from app.scrappers.base import BaseScraper
 
 MAGNUM_DEFAULT_URL = "https://magnum.kz/?city=astana"
 
-
+#Сайт Magnum находится под усиленной защитой, поэтому доступ к данным затруднен.
 class MagnumScraper(BaseScraper):
     source_name = "magnum"
 
