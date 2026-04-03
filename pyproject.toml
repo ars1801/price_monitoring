@@ -12,9 +12,11 @@ dependencies = [
     "sqlalchemy",
     "pydantic",
     "pydantic-settings",
-    "psycopg2",
+    "psycopg2-binary",
     "alembic",
     "httpx",
+    "taskiq",
+    "taskiq-redis",
 ]
 
 [build-system]

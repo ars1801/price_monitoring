@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     db_password: str = Field(default="postgres", alias="DB_PASSWORD")
 
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
+    redis_url: str = Field(default="redis://redis:6379", alias="REDIS_URL")
+
+    monitoring_interval_hours: int = Field(default=6, alias="MONITORING_INTERVAL_HOURS")
 
     price_snapshot_interval_minutes: int = Field(default=1440, alias="PRICE_SNAPSHOT_INTERVAL_MINUTES")
 
