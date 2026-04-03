@@ -1,16 +1,15 @@
 from typing import Any
 
-
-from app.services import ScraperService
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, HttpUrl
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_db
 from app.services.scrapper_service import ScrapeTarget, ScraperService
+from app.services.service_registry import scraper_service
 
 router = APIRouter()
-service = ScraperService()
+service: ScraperService = scraper_service
 
 
 class ScrapeTaskDTO(BaseModel):

@@ -4,6 +4,7 @@ import asyncio
 import logging
 import random
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -36,6 +37,15 @@ class SaveContext:
     product_source_repo: ProductSourceRepository
     price_history_repo: PriceHistoryRepository
 
+@dataclass(slots=True)
+class ScrapeMetrics:
+    total_runs: int = 0
+    successful_runs: int = 0
+    failed_runs: int = 0
+    total_items: int = 0
+    total_saved: int = 0
+    last_run_at: datetime | None = None
+
 
 class ScraperService:
     def __init__(
@@ -55,6 +65,8 @@ class ScraperService:
         self._min_jitter = min_jitter_seconds
         self._max_jitter = max_jitter_seconds
         self._snapshot_interval_minutes = settings.price_snapshot_interval_minutes
+        self._metrics = ScrapeMetrics()
+        self._source_metrics: dict[str, ScrapeMetrics] = {}
 
     async def scrape_all(self, db: Session, category: str | None = None) -> dict[str, dict[str, Any]]:
         targets = [
@@ -85,38 +97,56 @@ class ScraperService:
         scraper = self._scrapers.get(target.source)
         if scraper is None:
             logger.warning("Unknown source requested", extra={"source": target.source, "url": target.url})
+            self._record_metrics(source=target.source, successful=False, items=0, saved=0)
             return target.source, {"items": [], "count": 0, "saved": 0, "url": target.url, "category": target.category}
 
-        async with self._semaphore:
-            await asyncio.sleep(random.uniform(self._min_jitter, self._max_jitter))
-            items = await scraper.scrape(url=target.url, category=target.category)
+        try:
+            async with self._semaphore:
+                await asyncio.sleep(random.uniform(self._min_jitter, self._max_jitter))
+                items = await scraper.scrape(url=target.url, category=target.category)
 
-        saved = self._save_products(
-            db=db,
-            context=context,
-            source_name=target.source,
-            source_url=target.url,
-            category=target.category,
-            products=items,
-        )
+            saved = self._save_products(
+                db=db,
+                context=context,
+                source_name=target.source,
+                source_url=target.url,
+                category=target.category,
+                products=items,
+            )
+            self._record_metrics(source=target.source, successful=True, items=len(items), saved=saved)
 
-        logger.info(
-            "Scraping finished",
-            extra={
-                "source": target.source,
+            logger.info(
+                "Scraping finished",
+                extra={
+                    "source": target.source,
+                    "url": target.url,
+                    "category": target.category,
+                    "items": len(items),
+                    "saved": saved,
+                },
+            )
+            return target.source, {
+                "items": items,
+                "count": len(items),
+                "saved": saved,
                 "url": target.url,
                 "category": target.category,
-                "items": len(items),
-                "saved": saved,
-            },
-        )
-        return target.source, {
-            "items": items,
-            "count": len(items),
-            "saved": saved,
-            "url": target.url,
-            "category": target.category,
-        }
+            }
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            self._record_metrics(source=target.source, successful=False, items=0, saved=0)
+            logger.exception(
+                "Scraping pipeline failed",
+                extra={"source": target.source, "url": target.url, "category": target.category, "error": str(exc)},
+            )
+            return target.source, {
+                "items": [],
+                "count": 0,
+                "saved": 0,
+                "url": target.url,
+                "category": target.category,
+                "error": "scrape_failed",
+            }
 
     def _save_products(
         self,
@@ -158,6 +188,50 @@ class ScraperService:
 
         db.commit()
         return saved
+    
+    def _record_metrics(self, *, source: str, successful: bool, items: int, saved: int) -> None:
+        now = datetime.now(UTC)
+
+        self._metrics.total_runs += 1
+        self._metrics.total_items += items
+        self._metrics.total_saved += saved
+        self._metrics.last_run_at = now
+        if successful:
+            self._metrics.successful_runs += 1
+        else:
+            self._metrics.failed_runs += 1
+
+        source_metric = self._source_metrics.setdefault(source, ScrapeMetrics())
+        source_metric.total_runs += 1
+        source_metric.total_items += items
+        source_metric.total_saved += saved
+        source_metric.last_run_at = now
+        if successful:
+            source_metric.successful_runs += 1
+        else:
+            source_metric.failed_runs += 1
+
+    def get_metrics(self) -> dict[str, Any]:
+        def serialize(metric: ScrapeMetrics) -> dict[str, Any]:
+            success_rate = (
+                round(metric.successful_runs / metric.total_runs, 4)
+                if metric.total_runs > 0
+                else 0.0
+            )
+            return {
+                "total_runs": metric.total_runs,
+                "successful_runs": metric.successful_runs,
+                "failed_runs": metric.failed_runs,
+                "success_rate": success_rate,
+                "total_items": metric.total_items,
+                "total_saved": metric.total_saved,
+                "last_run_at": metric.last_run_at,
+            }
+
+        return {
+            "overall": serialize(self._metrics),
+            "sources": {source: serialize(metric) for source, metric in self._source_metrics.items()},
+        }
 
     @staticmethod
     def _resolve_product_url(*, item: dict[str, Any], fallback_url: str) -> str:

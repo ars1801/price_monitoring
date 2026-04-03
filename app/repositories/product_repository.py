@@ -23,3 +23,6 @@ class ProductRepository:
 
     def get_or_create(self, *, name: str, brand: str | None) -> Product:
         return self.upsert(name=name, brand=brand)
+    
+    def get_by_id(self, *, product_id: int) -> Product | None:
+        return self._db.get(Product, product_id)

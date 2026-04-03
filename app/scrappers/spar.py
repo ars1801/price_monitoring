@@ -6,7 +6,7 @@ from urllib.parse import urljoin
 
 from app.scrappers.base import BaseScraper
 
-SPAR_DEFAULT_URL = "https://woltasd.com/en/kaz/nur-sultan/venue/eurospar-anet-baba-44"
+SPAR_DEFAULT_URL = "https://wolt.com/en/kaz/nur-sultan/venue/eurospar-anet-baba-44"
 
 
 class SparScraper(BaseScraper):

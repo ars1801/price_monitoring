@@ -26,6 +26,8 @@ class Settings(BaseSettings):
 
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
+    price_snapshot_interval_minutes: int = Field(default=1440, alias="PRICE_SNAPSHOT_INTERVAL_MINUTES")
+
     @property
     def database_url(self) -> str:
         # Подключения к PostgreSQL
