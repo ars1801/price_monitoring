@@ -8,7 +8,7 @@ class ProductSourceRepository:
     def __init__(self, db: Session) -> None:
         self._db = db
 
-    def get_or_create(
+    def upsert(
         self,
         *,
         product: Product,
@@ -23,8 +23,12 @@ class ProductSourceRepository:
             )
         )
         if product_source:
+            if product_source.product_id != product.id:
+                product_source.product = product
             if category and product_source.category != category:
                 product_source.category = category
+            if not product_source.is_active:
+                product_source.is_active = True
             return product_source
 
         product_source = ProductSource(
@@ -37,3 +41,18 @@ class ProductSourceRepository:
         self._db.add(product_source)
         self._db.flush()
         return product_source
+    
+    def get_or_create(
+        self,
+        *,
+        product: Product,
+        source: Source,
+        product_url: str,
+        category: str | None,
+    ) -> ProductSource:
+        return self.upsert(
+            product=product,
+            source=source,
+            product_url=product_url,
+            category=category,
+        )

@@ -8,10 +8,10 @@ class SourceRepository:
     def __init__(self, db: Session) -> None:
         self._db = db
 
-    def get_or_create(self, *, name: str, base_url: str) -> Source:
+    def upsert(self, *, name: str, base_url: str) -> Source:
         source = self._db.scalar(select(Source).where(Source.name == name))
         if source:
-            if not source.base_url:
+            if base_url and source.base_url != base_url:
                 source.base_url = base_url
             return source
 
@@ -19,3 +19,6 @@ class SourceRepository:
         self._db.add(source)
         self._db.flush()
         return source
+
+    def get_or_create(self, *, name: str, base_url: str) -> Source:
+        return self.upsert(name=name, base_url=base_url)

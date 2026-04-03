@@ -9,6 +9,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.repositories.price_history_repository import PriceHistoryRepository
 from app.repositories.product_repository import ProductRepository
 from app.repositories.product_source_repository import ProductSourceRepository
@@ -44,6 +45,7 @@ class ScraperService:
         min_jitter_seconds: float = 0.05,
         max_jitter_seconds: float = 0.25,
     ) -> None:
+        settings = get_settings()
         self._scrapers: dict[str, BaseScraper] = {
             "magnum": MagnumScraper(),
             "small": SmallScraper(),
@@ -52,6 +54,7 @@ class ScraperService:
         self._semaphore = asyncio.Semaphore(max_concurrency)
         self._min_jitter = min_jitter_seconds
         self._max_jitter = max_jitter_seconds
+        self._snapshot_interval_minutes = settings.price_snapshot_interval_minutes
 
     async def scrape_all(self, db: Session, category: str | None = None) -> dict[str, dict[str, Any]]:
         targets = [
@@ -125,7 +128,7 @@ class ScraperService:
         category: str | None,
         products: list[dict[str, Any]],
     ) -> int:
-        source = context.source_repo.get_or_create(name=source_name, base_url=source_url)
+        source = context.source_repo.upsert(name=source_name, base_url=source_url)
         saved = 0
 
         for item in products:
@@ -137,16 +140,21 @@ class ScraperService:
                 continue
 
             item_source = str(item.get("source") or source_name).strip().lower()
-            product = context.product_repo.get_or_create(name=name, brand=brand)
+            product = context.product_repo.upsert(name=name, brand=brand)
             product_url = self._resolve_product_url(item={**item, "source": item_source}, fallback_url=source_url)
-            product_source = context.product_source_repo.get_or_create(
+            product_source = context.product_source_repo.upsert(
                 product=product,
                 source=source,
                 product_url=product_url,
                 category=item.get("category") or category,
             )
-            context.price_history_repo.add(product_source=product_source, price=price)
-            saved += 1
+            inserted = context.price_history_repo.add_if_changed_or_snapshot(
+                product_source=product_source,
+                price=price,
+                snapshot_interval_minutes=self._snapshot_interval_minutes,
+            )
+            if inserted:
+                saved += 1
 
         db.commit()
         return saved

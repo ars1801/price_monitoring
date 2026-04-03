@@ -1,6 +1,7 @@
 from typing import Any
 
 
+from app.services import ScraperService
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, HttpUrl
 from sqlalchemy.orm import Session
