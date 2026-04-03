@@ -49,7 +49,7 @@ class RawProductDTO(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     name: Any
-    brand: Any
+    brand: Any = None
     price: Any
     source: Any
     url: str | None = None
@@ -62,13 +62,13 @@ class CleanProductDTO(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     name: str
-    brand: str
+    brand: str | None = None
     price: Decimal
     source: str
     url: str | None = None
     category: str | None = None
 
-    @field_validator("name", "brand", "source", mode="before")
+    @field_validator("name", "source", mode="before")
     @classmethod
     def _validate_required_text(cls, value: Any) -> str:
         text = str(value).strip() if value is not None else ""
@@ -76,6 +76,14 @@ class CleanProductDTO(BaseModel):
             msg = "Поле обязательно и не может быть пустым"
             raise ValueError(msg)
         return text
+
+    @field_validator("brand", mode="before")
+    @classmethod
+    def _normalize_brand(cls, value: Any) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
 
     @field_validator("price", mode="before")
     @classmethod
