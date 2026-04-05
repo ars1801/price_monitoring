@@ -5,7 +5,7 @@ from typing import Any
 
 from app.core.config import get_settings
 from app.core.database import SessionLocal
-from app.services.service_registry import scraper_service
+from app.services.service_registry import price_alert_service, scraper_service
 from app.tasks.broker import broker
 
 logger = logging.getLogger(__name__)

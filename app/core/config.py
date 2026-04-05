@@ -30,6 +30,14 @@ class Settings(BaseSettings):
     monitoring_interval_hours: int = Field(default=6, alias="MONITORING_INTERVAL_HOURS")
 
     price_snapshot_interval_minutes: int = Field(default=1440, alias="PRICE_SNAPSHOT_INTERVAL_MINUTES")
+    price_change_alert_threshold_percent: float = Field(
+        default=10.0,
+        alias="PRICE_CHANGE_ALERT_THRESHOLD_PERCENT",
+    )
+    telegram_bot_token: str | None = Field(default=None, alias="TELEGRAM_BOT_TOKEN")
+    telegram_chat_id: str | None = Field(default=None, alias="TELEGRAM_CHAT_ID")
+    telegram_api_base_url: str = Field(default="https://api.telegram.org", alias="TELEGRAM_API_BASE_URL")
+    telegram_enabled: bool = Field(default=True, alias="TELEGRAM_ENABLED")
 
     @property
     def database_url(self) -> str:
