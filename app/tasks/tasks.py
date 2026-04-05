@@ -25,11 +25,14 @@ async def scheduled_price_monitoring(category: str | None = None) -> dict[str, A
     try:
         result = await scraper_service.scrape_all(db=db, category=category)
         total_saved = sum(item["saved"] for item in result.values())
+        alert_result = await price_alert_service.notify_daily_large_changes(db=db)
         logger.info(
             "Scheduled monitoring completed",
             extra={
                 "sources": list(result.keys()),
                 "total_saved": total_saved,
+                "alerts_detected": alert_result["detected"],
+                "alerts_sent": alert_result["sent"],
                 "cron": MONITORING_CRON,
             },
         )
@@ -37,6 +40,7 @@ async def scheduled_price_monitoring(category: str | None = None) -> dict[str, A
             "cron": MONITORING_CRON,
             "sources": list(result.keys()),
             "total_saved": total_saved,
+            "alerts": alert_result,
             "result": result,
         }
     except Exception:  # noqa: BLE001
